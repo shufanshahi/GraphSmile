@@ -26,107 +26,107 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--no_cuda",
-                    action="store_true",
+parser.add_argument('--no_cuda',
+                    action='store_true',
                     default=False,
-                    help="does not use GPU")
-parser.add_argument("--gpu", default="2", type=str, help="GPU ids")
-parser.add_argument("--port", default="15301", help="MASTER_PORT")
-parser.add_argument("--classify", default="emotion", help="sentiment, emotion")
-parser.add_argument("--lr",
+                    help='does not use GPU')
+parser.add_argument('--gpu', default='2', type=str, help='GPU ids')
+parser.add_argument('--port', default='15301', help='MASTER_PORT')
+parser.add_argument('--classify', default='emotion', help='sentiment, emotion')
+parser.add_argument('--lr',
                     type=float,
                     default=0.00001,
-                    metavar="LR",
-                    help="learning rate")
-parser.add_argument("--l2",
+                    metavar='LR',
+                    help='learning rate')
+parser.add_argument('--l2',
                     type=float,
                     default=0.0001,
-                    metavar="L2",
-                    help="L2 regularization weight")
-parser.add_argument("--batch_size",
+                    metavar='L2',
+                    help='L2 regularization weight')
+parser.add_argument('--batch_size',
                     type=int,
                     default=32,
-                    metavar="BS",
-                    help="batch size")
-parser.add_argument("--epochs",
+                    metavar='BS',
+                    help='batch size')
+parser.add_argument('--epochs',
                     type=int,
                     default=100,
-                    metavar="E",
-                    help="number of epochs")
-parser.add_argument("--tensorboard",
-                    action="store_true",
+                    metavar='E',
+                    help='number of epochs')
+parser.add_argument('--tensorboard',
+                    action='store_true',
                     default=False,
-                    help="Enables tensorboard log")
-parser.add_argument("--modals", default="avl", help="modals")
+                    help='Enables tensorboard log')
+parser.add_argument('--modals', default='avl', help='modals')
 parser.add_argument(
-    "--dataset",
-    default="IEMOCAP",
-    help="dataset to train and test.MELD/IEMOCAP/IEMOCAP4/CMUMOSEI7",
+    '--dataset',
+    default='IEMOCAP',
+    help='dataset to train and test.MELD/IEMOCAP/IEMOCAP4/CMUMOSEI7',
 )
 parser.add_argument(
-    "--textf_mode",
-    default="textf0",
-    help="concat4/concat2/textf0/textf1/textf2/textf3/sum2/sum4",
+    '--textf_mode',
+    default='textf0',
+    help='concat4/concat2/textf0/textf1/textf2/textf3/sum2/sum4',
 )
 
 parser.add_argument(
-    "--conv_fpo",
-    nargs="+",
+    '--conv_fpo',
+    nargs='+',
     type=int,
     default=[3, 1, 1],
-    help="n_filter,n_padding; n_out = (n_in + 2*n_padding -n_filter)/stride +1",
+    help='n_filter,n_padding; n_out = (n_in + 2*n_padding -n_filter)/stride +1',
 )
 
-parser.add_argument("--hidden_dim", type=int, default=256, help="hidden_dim")
+parser.add_argument('--hidden_dim', type=int, default=256, help='hidden_dim')
 parser.add_argument(
-    "--win",
-    nargs="+",
+    '--win',
+    nargs='+',
     type=int,
     default=[17, 17],
-    help="[win_p, win_f], -1 denotes all nodes",
+    help='[win_p, win_f], -1 denotes all nodes',
 )
-parser.add_argument("--heter_n_layers",
-                    nargs="+",
+parser.add_argument('--heter_n_layers',
+                    nargs='+',
                     type=int,
                     default=[6, 6, 6],
-                    help="heter_n_layers")
+                    help='heter_n_layers')
 
-parser.add_argument("--drop",
+parser.add_argument('--drop',
                     type=float,
                     default=0.3,
-                    metavar="dropout",
-                    help="dropout rate")
+                    metavar='dropout',
+                    help='dropout rate')
 
-parser.add_argument("--shift_win",
+parser.add_argument('--shift_win',
                     type=int,
                     default=12,
-                    help="windows of sentiment shift")
+                    help='windows of sentiment shift')
 
 parser.add_argument(
-    "--loss_type",
-    default="emo_sen_sft",
-    help="auto/epoch/emo_sen_sft/emo_sen/emo_sft/emo/sen_sft/sen",
+    '--loss_type',
+    default='emo_sen_sft',
+    help='auto/epoch/emo_sen_sft/emo_sen/emo_sft/emo/sen_sft/sen',
 )
 parser.add_argument(
-    "--lambd",
-    nargs="+",
+    '--lambd',
+    nargs='+',
     type=float,
     default=[1.0, 1.0, 1.0],
-    help="[loss_emotion, loss_sentiment, loss_shift]",
+    help='[loss_emotion, loss_sentiment, loss_shift]',
 )
 
 args = parser.parse_args()
 
-os.environ["MASTER_ADDR"] = "localhost"
-os.environ["MASTER_PORT"] = args.port
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+os.environ['MASTER_ADDR'] = 'localhost'
+os.environ['MASTER_PORT'] = args.port
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 world_size = torch.cuda.device_count()
-os.environ["WORLD_SIZE"] = str(world_size)
+os.environ['WORLD_SIZE'] = str(world_size)
 
-MELD_path = ""
-IEMOCAP_path = ""
-IEMOCAP4_path = ""
-CMUMOSEI7_path = ""
+MELD_path = ''
+IEMOCAP_path = ''
+IEMOCAP4_path = ''
+CMUMOSEI7_path = ''
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -136,12 +136,12 @@ def init_ddp(local_rank):
     try:
         if not dist.is_initialized():
             torch.cuda.set_device(local_rank)
-            os.environ["RANK"] = str(local_rank)
-            dist.init_process_group(backend="nccl", init_method="env://")
+            os.environ['RANK'] = str(local_rank)
+            dist.init_process_group(backend='nccl', init_method='env://')
         else:
-            logger.info("Distributed process group already initialized.")
+            logger.info('Distributed process group already initialized.')
     except Exception as e:
-        logger.error(f"Failed to initialize distributed process group: {e}")
+        logger.error(f'Failed to initialize distributed process group: {e}')
         raise
 
 
@@ -211,11 +211,11 @@ def setup_samplers(trainset, valid_ratio, epoch):
 
 
 def main(local_rank):
-    print(f"Running main(**args) on rank {local_rank}.")
+    print(f'Running main(**args) on rank {local_rank}.')
     init_ddp(local_rank)  # 初始化
 
     today = datetime.datetime.now()
-    name_ = args.modals + "_" + args.dataset
+    name_ = args.modals + '_' + args.dataset
 
     cuda = torch.cuda.is_available() and not args.no_cuda
     if args.tensorboard:
@@ -227,20 +227,20 @@ def main(local_rank):
     batch_size = args.batch_size
     modals = args.modals
 
-    if args.dataset == "IEMOCAP":
+    if args.dataset == 'IEMOCAP':
         embedding_dims = [1024, 342, 1582]
-    elif args.dataset == "IEMOCAP4":
+    elif args.dataset == 'IEMOCAP4':
         embedding_dims = [1024, 512, 100]
-    elif args.dataset == "MELD":
+    elif args.dataset == 'MELD':
         embedding_dims = [1024, 342, 300]
-    elif args.dataset == "CMUMOSEI7":
+    elif args.dataset == 'CMUMOSEI7':
         embedding_dims = [1024, 35, 384]
 
-    if args.dataset == "MELD" or args.dataset == "CMUMOSEI7":
+    if args.dataset == 'MELD' or args.dataset == 'CMUMOSEI7':
         n_classes_emo = 7
-    elif args.dataset == "IEMOCAP":
+    elif args.dataset == 'IEMOCAP':
         n_classes_emo = 6
-    elif args.dataset == "IEMOCAP4":
+    elif args.dataset == 'IEMOCAP4':
         n_classes_emo = 4
 
     seed_everything()
@@ -258,16 +258,16 @@ def main(local_rank):
     loss_function_sen = nn.NLLLoss()
     loss_function_shift = nn.NLLLoss()
 
-    if args.loss_type == "auto_loss":
+    if args.loss_type == 'auto_loss':
         awl = AutomaticWeightedLoss(3)
         optimizer = optim.AdamW(
             [
                 {
-                    "params": model.parameters()
+                    'params': model.parameters()
                 },
                 {
-                    "params": awl.parameters(),
-                    "weight_decay": 0
+                    'params': awl.parameters(),
+                    'weight_decay': 0
                 },
             ],
             lr=args.lr,
@@ -280,7 +280,7 @@ def main(local_rank):
                                 weight_decay=args.l2,
                                 amsgrad=True)
 
-    if args.dataset == "MELD":
+    if args.dataset == 'MELD':
         train_loader, valid_loader, test_loader = get_data_loaders(
             path=MELD_path,
             dataset_class=MELDDataset_BERT,
@@ -289,7 +289,7 @@ def main(local_rank):
             num_workers=0,
             pin_memory=False,
         )
-    elif args.dataset == "IEMOCAP":
+    elif args.dataset == 'IEMOCAP':
         train_loader, valid_loader, test_loader = get_data_loaders(
             path=IEMOCAP_path,
             dataset_class=IEMOCAPDataset_BERT,
@@ -298,7 +298,7 @@ def main(local_rank):
             num_workers=0,
             pin_memory=False,
         )
-    elif args.dataset == "IEMOCAP4":
+    elif args.dataset == 'IEMOCAP4':
         train_loader, valid_loader, test_loader = get_data_loaders(
             path=IEMOCAP4_path,
             dataset_class=IEMOCAPDataset_BERT4,
@@ -307,7 +307,7 @@ def main(local_rank):
             num_workers=0,
             pin_memory=False,
         )
-    elif args.dataset == "CMUMOSEI7":
+    elif args.dataset == 'CMUMOSEI7':
         train_loader, valid_loader, test_loader = get_data_loaders(
             path=CMUMOSEI7_path,
             dataset_class=CMUMOSEIDataset7,
@@ -317,7 +317,7 @@ def main(local_rank):
             pin_memory=False,
         )
     else:
-        print("There is no such dataset")
+        print('There is no such dataset')
 
     best_f1_emo, best_f1_sen, best_loss = None, None, None
     best_label_emo, best_pred_emo = None, None
@@ -328,13 +328,13 @@ def main(local_rank):
     all_f1_sft, all_acc_sft = [], []
 
     for epoch in range(n_epochs):
-        if args.dataset == "MELD":
+        if args.dataset == 'MELD':
             trainset = MELDDataset_BERT(MELD_path)
-        elif args.dataset == "IEMOCAP":
+        elif args.dataset == 'IEMOCAP':
             trainset = IEMOCAPDataset_BERT(IEMOCAP_path)
-        elif args.dataset == "IEMOCAP4":
+        elif args.dataset == 'IEMOCAP4':
             trainset = IEMOCAPDataset_BERT4(IEMOCAP4_path)
-        elif args.dataset == "CMUMOSEI7":
+        elif args.dataset == 'CMUMOSEI7':
             trainset = CMUMOSEIDataset7(CMUMOSEI7_path)
 
         setup_samplers(trainset, valid_ratio=0.1, epoch=epoch)
@@ -380,7 +380,7 @@ def main(local_rank):
         )
 
         print(
-            "epoch: {}, train_loss: {}, train_acc_emo: {}, train_f1_emo: {}, valid_loss: {}, valid_acc_emo: {}, valid_f1_emo: {}"
+            'epoch: {}, train_loss: {}, train_acc_emo: {}, train_f1_emo: {}, valid_loss: {}, valid_acc_emo: {}, valid_f1_emo: {}'
             .format(
                 epoch + 1,
                 train_loss,
@@ -417,7 +417,7 @@ def main(local_rank):
             all_acc_sft.append(test_acc_sft)
 
             print(
-                "test_loss: {}, test_acc_emo: {}, test_f1_emo: {}, test_acc_sen: {}, test_f1_sen: {}, test_acc_sft: {}, test_f1_sft: {}, total time: {} sec, {}"
+                'test_loss: {}, test_acc_emo: {}, test_f1_emo: {}, test_acc_sen: {}, test_f1_sen: {}, test_acc_sft: {}, test_f1_sft: {}, total time: {} sec, {}'
                 .format(
                     test_loss,
                     test_acc_emo,
@@ -427,19 +427,19 @@ def main(local_rank):
                     test_acc_sft,
                     test_f1_sft,
                     round(time.time() - start_time, 2),
-                    time.strftime("%Y-%m-%d %H:%M:%S",
+                    time.strftime('%Y-%m-%d %H:%M:%S',
                                   time.localtime(time.time())),
                 ))
-            print("-" * 100)
+            print('-' * 100)
 
-            if args.classify == "emotion":
+            if args.classify == 'emotion':
                 if best_f1_emo == None or best_f1_emo < test_f1_emo:
                     best_f1_emo = test_f1_emo
                     best_f1_sen = test_f1_sen
                     best_label_emo, best_pred_emo = test_label_emo, test_pred_emo
                     best_label_sen, best_pred_sen = test_label_sen, test_pred_sen
 
-            elif args.classify == "sentiment":
+            elif args.classify == 'sentiment':
                 if best_f1_sen == None or best_f1_sen < test_f1_sen:
                     best_f1_emo = test_f1_emo
                     best_f1_sen = test_f1_sen
@@ -460,7 +460,7 @@ def main(local_rank):
                                           digits=4,
                                           zero_division=0))
                 print(confusion_matrix(best_label_sen, best_pred_sen))
-                print("-" * 100)
+                print('-' * 100)
 
         dist.barrier()
 

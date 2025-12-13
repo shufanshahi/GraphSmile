@@ -10,9 +10,9 @@ Affiliation: Huazhong University of Science and Technology (HUST)
     author={Jiang Li and Xiaoping Wang and Zhigang Zeng},
     year={2025},
     journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
-    volume = {},
-    number={},
-    pages = {1-18},
+    volume={47},
+    number={10},
+    pages = {8786-8803},
     doi={10.1109/TPAMI.2025.3581236}
 }
 ```

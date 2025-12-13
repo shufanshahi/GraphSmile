@@ -18,12 +18,11 @@ class HeterGConv_Edge(torch.nn.Module):
         self.num_layers = num_layers
         self.no_cuda = no_cuda
 
-        self.edge_weight = nn.Parameter(torch.ones(500000))
+        self.edge_weight = None
 
         self.hetergcn_layers = _get_clones(encoder_layer, num_layers)
-        self.fc_layer = nn.Sequential(nn.Linear(feature_size, feature_size),
-                                      nn.LeakyReLU(), nn.Dropout(dropout))
-        self.fc_layers = _get_clones(self.fc_layer, num_layers)
+        self.fc_layers = _get_clones(nn.Sequential(nn.Linear(feature_size, feature_size),
+                                    nn.LeakyReLU(), nn.Dropout(dropout)), num_layers)
 
     def forward(self, feature_tuple, dia_lens, win_p, win_f, edge_index=None):
 
@@ -33,7 +32,16 @@ class HeterGConv_Edge(torch.nn.Module):
         if edge_index is None:
             edge_index = self._heter_no_weight_edge(feature, num_modal,
                                                     dia_lens, win_p, win_f)
-        edge_weight = self.edge_weight[0:edge_index.size(1)]
+        num_edges_needed = edge_index.size(1)
+        device = feature.device
+        if self.edge_weight is None:
+            self.edge_weight = nn.Parameter(torch.ones(num_edges_needed, device=device))
+            self.register_parameter('edge_weight', self.edge_weight)
+        elif self.edge_weight.size(0) < num_edges_needed:
+            new_weights = nn.Parameter(torch.ones(num_edges_needed - self.edge_weight.size(0), device=device))
+            self.edge_weight = nn.Parameter(torch.cat([self.edge_weight, new_weights], dim=0))
+            self.register_parameter('edge_weight', self.edge_weight)
+        edge_weight = self.edge_weight[:num_edges_needed]
 
         adj_weight = self._edge_index_to_adjacency_matrix(
             edge_index,
@@ -66,7 +74,7 @@ class HeterGConv_Edge(torch.nn.Module):
         adj = adj_sparse.to_dense()
         row_sum = torch.sum(adj, dim=1)
         d_inv_sqrt = torch.pow(row_sum, -0.5)
-        d_inv_sqrt[d_inv_sqrt == float("inf")] = 0
+        d_inv_sqrt[d_inv_sqrt == float('inf')] = 0
         d_inv_sqrt_mat = torch.diag_embed(d_inv_sqrt)
         gcn_fact = torch.matmul(d_inv_sqrt_mat,
                                 torch.matmul(adj, d_inv_sqrt_mat))
@@ -145,7 +153,7 @@ class SGConv_Our(torch.nn.Module):
         if bias:
             self.bias = Parameter(torch.FloatTensor(out_features))
         else:
-            self.register_parameter("bias", None)
+            self.register_parameter('bias', None)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -274,7 +282,7 @@ def build_match_sen_shift_label(shift_win, dia_lengths, label_sen):
             start += dia_len
         label_shift = torch.cat(label_shifts, dim=0)
     else:
-        print("Window must be greater than 0 or equal to -1")
+        print('Window must be greater than 0 or equal to -1')
         raise NotImplementedError
 
     return label_shift

@@ -15,12 +15,27 @@ class GraphSmile(nn.Module):
         self.modals = args.modals
         self.shift_win = args.shift_win
 
-        self.batchnorms_t = nn.ModuleList(
-            nn.BatchNorm1d(embedding_dims[0]) for _ in range(4))
+        if self.textf_mode == 'concat4' or self.textf_mode == 'sum4':
+            self.used_t_indices = [0, 1, 2, 3]
+        elif self.textf_mode == 'concat2' or self.textf_mode == 'sum2':
+            self.used_t_indices = [0, 1]
+        elif self.textf_mode == 'textf0':
+            self.used_t_indices = [0]
+        elif self.textf_mode == 'textf1':
+            self.used_t_indices = [1]
+        elif self.textf_mode == 'textf2':
+            self.used_t_indices = [2]
+        elif self.textf_mode == 'textf3':
+            self.used_t_indices = [3]
+        else:
+            raise ValueError(f"unsupported: {self.textf_mode}")
+        self.batchnorms_t = nn.ModuleList([
+            nn.BatchNorm1d(embedding_dims[0]) for _ in self.used_t_indices])
 
-        in_dims_t = (4 * embedding_dims[0] if args.textf_mode == "concat4" else
-                     (2 * embedding_dims[0]
-                      if args.textf_mode == "concat2" else embedding_dims[0]))
+        if self.textf_mode.startswith('concat'):
+            in_dims_t = len(self.used_t_indices) * embedding_dims[0]
+        else:
+            in_dims_t = embedding_dims[0]
         self.dim_layer_t = nn.Sequential(nn.Linear(in_dims_t, args.hidden_dim),
                                          nn.LeakyReLU(), nn.Dropout(args.drop))
         self.dim_layer_v = nn.Sequential(
@@ -34,7 +49,6 @@ class GraphSmile(nn.Module):
             nn.Dropout(args.drop),
         )
 
-        # Heter
         hetergconvLayer_tv = HeterGConvLayer(args.hidden_dim, args.drop,
                                              args.no_cuda)
         self.hetergconv_tv = HeterGConv_Edge(
@@ -76,46 +90,22 @@ class GraphSmile(nn.Module):
     def forward(self, feature_t0, feature_t1, feature_t2, feature_t3,
                 feature_v, feature_a, umask, qmask, dia_lengths):
 
-        (
-            (seq_len_t, batch_size_t, feature_dim_t),
-            (seq_len_v, batch_size_v, feature_dim_v),
-            (seq_len_a, batch_size_a, feature_dim_a),
-        ) = [feature_t0.shape, feature_v.shape, feature_a.shape]
-        features_t = [
-            batchnorm_t(feature_t.transpose(0, 1).reshape(
-                -1, feature_dim_t)).reshape(-1, seq_len_t,
-                                            feature_dim_t).transpose(1, 0)
-            for batchnorm_t, feature_t in
-            zip(self.batchnorms_t,
-                [feature_t0, feature_t1, feature_t2, feature_t3])
-        ]
-        feature_t0, feature_t1, feature_t2, feature_t3 = features_t
+        all_t_features = [feature_t0, feature_t1, feature_t2, feature_t3]
+        seq_len_t, batch_size_t, feature_dim_t = feature_t0.shape
+        used_t_features = []
+        for idx, bn in zip(self.used_t_indices, self.batchnorms_t):
+            feat = all_t_features[idx]
+            feat_bn = bn(feat.transpose(0, 1).reshape(-1, feature_dim_t))
+            feat_bn = feat_bn.reshape(batch_size_t, seq_len_t, feature_dim_t).transpose(1, 0)
+            used_t_features.append(feat_bn)
 
-        dim_layer_dict_t = {
-            "concat4":
-            lambda: self.dim_layer_t(
-                torch.cat([feature_t0, feature_t1, feature_t2, feature_t3],
-                          dim=-1)),
-            "sum4":
-            lambda:
-            (self.dim_layer_t(feature_t0) + self.dim_layer_t(feature_t1) + self
-             .dim_layer_t(feature_t2) + self.dim_layer_t(feature_t3)) / 4,
-            "concat2":
-            lambda: self.dim_layer_t(
-                torch.cat([feature_t0, feature_t1], dim=-1)),
-            "sum2":
-            lambda:
-            (self.dim_layer_t(feature_t0) + self.dim_layer_t(feature_t1)) / 2,
-            "textf0":
-            lambda: self.dim_layer_t(feature_t0),
-            "textf1":
-            lambda: self.dim_layer_t(feature_t1),
-            "textf2":
-            lambda: self.dim_layer_t(feature_t2),
-            "textf3":
-            lambda: self.dim_layer_t(feature_t3),
-        }
-        featdim_t = dim_layer_dict_t[self.textf_mode]()
+        if self.textf_mode in ['concat4', 'concat2']:
+            merged_t_feat = torch.cat(used_t_features, dim=-1)
+        elif self.textf_mode in ['sum4', 'sum2']:
+            merged_t_feat = sum(used_t_features) / len(used_t_features)
+        else:
+            merged_t_feat = used_t_features[0]
+        featdim_t = self.dim_layer_t(merged_t_feat)
         featdim_v, featdim_a = self.dim_layer_v(feature_v), self.dim_layer_a(
             feature_a)
 

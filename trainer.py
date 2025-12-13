@@ -29,11 +29,11 @@ def train_or_eval_model(
     modals,
     optimizer=None,
     train=False,
-    dataset="IEMOCAP",
-    loss_type="",
+    dataset='IEMOCAP',
+    loss_type='',
     lambd=[1.0, 1.0, 1.0],
     epochs=100,
-    classify="",
+    classify='',
     shift_win=5,
 ):
     losses, preds_emo, labels_emo = [], [], []
@@ -79,25 +79,25 @@ def train_or_eval_model(
                                                 label_sen)
         loss_sft = loss_function_shift(prob_sft, label_sft)
 
-        if loss_type == "auto":
+        if loss_type == 'auto':
             awl = AutomaticWeightedLoss(3)
             loss = awl(loss_emo, loss_sen, loss_sft)
-        elif loss_type == "epoch":
+        elif loss_type == 'epoch':
             loss = (epoch / epochs) * (lambd[0] * loss_emo) + (
                 1 - epoch / epochs) * (lambd[1] * loss_sen +
                                        lambd[2] * loss_sft)
-        elif loss_type == "emo_sen_sft":
+        elif loss_type == 'emo_sen_sft':
             loss = lambd[0] * loss_emo + lambd[1] * loss_sen + lambd[
                 2] * loss_sft
-        elif loss_type == "emo_sen":
+        elif loss_type == 'emo_sen':
             loss = lambd[0] * loss_emo + lambd[1] * loss_sen
-        elif loss_type == "emo_sft":
+        elif loss_type == 'emo_sft':
             loss = lambd[0] * loss_emo + lambd[2] * loss_sft
-        elif loss_type == "emo":
+        elif loss_type == 'emo':
             loss = loss_emo
-        elif loss_type == "sen_sft":
+        elif loss_type == 'sen_sft':
             loss = lambd[1] * loss_sen + lambd[2] * loss_sft
-        elif loss_type == "sen":
+        elif loss_type == 'sen':
             loss = loss_sen
         else:
             NotImplementedError
@@ -140,12 +140,12 @@ def train_or_eval_model(
     avg_loss = round(np.sum(losses) / len(losses), 4)
     avg_acc_emo = round(accuracy_score(labels_emo, preds_emo) * 100, 2)
     avg_f1_emo = round(
-        f1_score(labels_emo, preds_emo, average="weighted") * 100, 2)
+        f1_score(labels_emo, preds_emo, average='weighted') * 100, 2)
     avg_acc_sen = round(accuracy_score(labels_sen, preds_sen) * 100, 2)
     avg_f1_sen = round(
-        f1_score(labels_sen, preds_sen, average="weighted") * 100, 2)
+        f1_score(labels_sen, preds_sen, average='weighted') * 100, 2)
     avg_acc_sft = round(accuracy_score(labels_sft, preds_sft) * 100, 2)
     avg_f1_sft = round(
-        f1_score(labels_sft, preds_sft, average="weighted") * 100, 2)
+        f1_score(labels_sft, preds_sft, average='weighted') * 100, 2)
 
     return avg_loss, labels_emo, preds_emo, avg_acc_emo, avg_f1_emo, labels_sen, preds_sen, avg_acc_sen, avg_f1_sen, avg_acc_sft, avg_f1_sft, vids, initial_feats, extracted_feats
