@@ -135,3 +135,13 @@ class GraphSmile(nn.Module):
         logit_shift = self.senshift(feat_fusion, feat_fusion, dia_lengths)
 
         return logit_emo, logit_sen, logit_shift, feat_fusion
+
+    def freeze_backbone(self):
+        """Freeze all backbone parameters for Stage 2 (anchors are managed externally)."""
+        for param in self.parameters():
+            param.requires_grad_(False)
+
+    def unfreeze_backbone(self):
+        """Restore all backbone parameters to trainable."""
+        for param in self.parameters():
+            param.requires_grad_(True)

@@ -123,9 +123,9 @@ os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 world_size = torch.cuda.device_count()
 os.environ['WORLD_SIZE'] = str(world_size)
 
-MELD_path = ''
-IEMOCAP_path = ''
-IEMOCAP4_path = ''
+MELD_path = '/mnt/Academia/Teasis/Code/Test_GraphSmile/dataset/meld_multi_features.pkl'
+IEMOCAP_path = '/mnt/Academia/Teasis/Code/Test_GraphSmile/dataset/iemocap_multi_features.pkl'
+IEMOCAP4_path = '/mnt/Academia/Teasis/Code/Test_GraphSmile/dataset/iemocap_multi_features_4.pkl'
 CMUMOSEI7_path = ''
 
 logging.basicConfig(level=logging.INFO)

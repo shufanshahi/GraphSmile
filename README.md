@@ -61,3 +61,42 @@ python -u run.py --gpu 3 --port 1534 --classify emotion \
 --loss_type emo_sen_sft --lr 8e-05 --batch_size 32 --hidden_dim 256 \
 --win 5 5 --heter_n_layers 2 2 2 --drop 0.4 --shift_win 2 --lambd 1.0 0.8 1.0
 ```
+
+## EACL (Emotion-Anchored Contrastive Learning) Integration
+
+GraphSmile+EACL adds emotion-anchored contrastive learning to improve discrimination between similar emotions (excited/happy, frustrated/angry). Uses a two-stage training: Stage 1 trains all params with contrastive + multi-task losses; Stage 2 adapts anchor vectors only for cosine-space classification.
+
+### IEMOCAP-6 + EACL
+```bash
+python -u run_eacl.py --gpu 0 --port 1540 --classify emotion \
+--dataset IEMOCAP --stage1_epochs 114 --stage2_epochs 6 --textf_mode textf0 \
+--loss_type emo_sen_sft --lr 1e-04 --stage2_lr 1e-3 --batch_size 16 --hidden_dim 512 \
+--win 17 17 --heter_n_layers 7 7 7 --drop 0.2 --shift_win 19 --lambd 1.0 1.0 0.7 \
+--lambda1 0.9 --lambda2 0.01 --temperature 0.1
+```
+
+### IEMOCAP-4 + EACL
+```bash
+python -u run_eacl.py --gpu 0 --port 1541 --classify emotion \
+--dataset IEMOCAP4 --stage1_epochs 114 --stage2_epochs 6 --textf_mode textf0 \
+--loss_type emo_sen_sft --lr 3e-04 --stage2_lr 1e-3 --batch_size 16 --hidden_dim 256 \
+--win 5 5 --heter_n_layers 4 4 4 --drop 0.2 --shift_win 10 --lambd 1.0 0.6 0.6 \
+--lambda1 0.9 --lambda2 0.01 --temperature 0.1
+```
+
+### MELD + EACL
+```bash
+python -u run_eacl.py --gpu 0 --port 1542 --classify emotion \
+--dataset MELD --stage1_epochs 44 --stage2_epochs 6 --textf_mode textf0 \
+--loss_type emo_sen_sft --lr 7e-05 --stage2_lr 1e-3 --batch_size 16 --hidden_dim 384 \
+--win 3 3 --heter_n_layers 5 5 5 --drop 0.2 --shift_win 3 --lambd 1.0 0.5 0.2 \
+--lambda1 0.1 --lambda2 0.1 --temperature 0.1
+```
+
+**Key EACL arguments:**
+- `--lambda1`: weight of contrastive term vs CE loss (0.9 for IEMOCAP, 0.1 for MELD)
+- `--lambda2`: weight of anchor angle loss within contrastive term (0.01–0.1)
+- `--temperature`: τ for cosine similarity scaling (0.1–0.15)
+- `--stage1_epochs`: epochs for representation learning with contrastive losses
+- `--stage2_epochs`: epochs for anchor adaptation (anchors-only training)
+- `--stage2_lr`: learning rate for anchor adaptation (typically higher than stage 1)
