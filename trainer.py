@@ -4,6 +4,8 @@ from sklearn.metrics import f1_score, accuracy_score
 import torch.nn.functional as F
 from module import build_match_sen_shift_label
 from utils import AutomaticWeightedLoss
+from spcl import (build_pairwise_mask, conversation_scores, difficulty,
+                  utterance_scores)
 
 seed = 2024
 
@@ -35,6 +37,8 @@ def train_or_eval_model(
     epochs=100,
     classify='',
     shift_win=5,
+    spcl_scheduler=None,
+    spcl_cfg=None,
 ):
     losses, preds_emo, labels_emo = [], [], []
     preds_sft, labels_sft = [], []
@@ -48,7 +52,7 @@ def train_or_eval_model(
     else:
         model.eval()
 
-    seed_everything()
+    seed_everything(2024 if spcl_cfg is None else spcl_cfg.get('seed', 2024))
     for iter, data in enumerate(dataloader):
 
         if train:
@@ -66,18 +70,53 @@ def train_or_eval_model(
         label_emo = torch.cat(label_emotions)
         label_sen = torch.cat(label_sentiments)
 
-        logit_emo, logit_sen, logit_sft, extracted_feature = model(
+        logit_emo, logit_sen, logit_sft, extracted_feature, uni_logits = model(
             textf0, textf1, textf2, textf3, visuf, acouf, umask, qmask,
             dia_lengths)
 
         prob_emo = F.log_softmax(logit_emo, -1)
-        loss_emo = loss_function_emo(prob_emo, label_emo)
         prob_sen = F.log_softmax(logit_sen, -1)
-        loss_sen = loss_function_sen(prob_sen, label_sen)
         prob_sft = F.log_softmax(logit_sft, -1)
         label_sft = build_match_sen_shift_label(shift_win, dia_lengths,
                                                 label_sen)
-        loss_sft = loss_function_shift(prob_sft, label_sft)
+        use_spcl = train and spcl_scheduler is not None
+        if not use_spcl:
+            loss_emo = loss_function_emo(prob_emo, label_emo)
+            loss_sen = loss_function_sen(prob_sen, label_sen)
+            loss_sft = loss_function_shift(prob_sft, label_sft)
+        else:
+            class_weight = getattr(loss_function_emo, 'weight', None)
+            l_utt = utterance_scores(logit_emo, label_emo, class_weight)
+            with torch.no_grad():
+                s_conv, modality_scores = conversation_scores(
+                    uni_logits, label_emo, dia_lengths,
+                    normalize=spcl_cfg['normalize'], unbiased=False)
+                rho = difficulty(l_utt.detach(), s_conv)
+                v = spcl_scheduler.mask(rho)
+            admitted = v.sum().clamp(min=1.0)
+            if class_weight is None:
+                emo_denom = admitted
+            else:
+                # Match NLLLoss(weight=..., reduction='mean') exactly when v=1.
+                emo_denom = (v * class_weight[label_emo]).sum().clamp(min=1.0)
+            loss_emo = (v * l_utt).sum() / emo_denom
+
+            if spcl_cfg['mask_sen']:
+                l_sen = F.nll_loss(prob_sen, label_sen, reduction='none')
+                loss_sen = (v * l_sen).sum() / admitted
+            else:
+                loss_sen = loss_function_sen(prob_sen, label_sen)
+
+            if spcl_cfg['mask_sft']:
+                v_pair = build_pairwise_mask(v, dia_lengths, shift_win)
+                assert v_pair.shape == label_sft.shape
+                l_sft = F.nll_loss(prob_sft, label_sft, reduction='none')
+                loss_sft = ((v_pair * l_sft).sum() /
+                            v_pair.sum().clamp(min=1.0))
+            else:
+                loss_sft = loss_function_shift(prob_sft, label_sft)
+            spcl_cfg['logger'].accumulate(rho, v, modality_scores, label_emo,
+                                          l_utt, s_conv)
 
         if loss_type == 'auto':
             awl = AutomaticWeightedLoss(3)

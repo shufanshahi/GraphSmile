@@ -123,15 +123,26 @@ class GraphSmile(nn.Module):
             (emo_v, emo_a), dia_lengths, self.win_p, self.win_f,
             heter_edge_index)
 
-        feat_fusion = (self.modal_fusion(featheter_tv[0]) + self.modal_fusion(
-            featheter_ta[0]) + self.modal_fusion(featheter_tv[1]) +
-                       self.modal_fusion(featheter_va[0]) +
-                       self.modal_fusion(featheter_ta[1]) +
-                       self.modal_fusion(featheter_va[1])) / 6
+        h_t = (self.modal_fusion(featheter_tv[0]) +
+               self.modal_fusion(featheter_ta[0])) / 6
+        h_v = (self.modal_fusion(featheter_tv[1]) +
+               self.modal_fusion(featheter_va[0])) / 6
+        h_a = (self.modal_fusion(featheter_ta[1]) +
+               self.modal_fusion(featheter_va[1])) / 6
+        feat_fusion = h_t + h_v + h_a
 
         logit_emo = self.emo_output(feat_fusion)
         logit_sen = self.sen_output(feat_fusion)
 
         logit_shift = self.senshift(feat_fusion, feat_fusion, dia_lengths)
 
-        return logit_emo, logit_sen, logit_shift, feat_fusion
+        weight, bias = self.emo_output.weight, self.emo_output.bias
+        uni_logits = {
+            't': h_t @ weight.t() + bias / 3.0,
+            'v': h_v @ weight.t() + bias / 3.0,
+            'a': h_a @ weight.t() + bias / 3.0,
+        }
+        assert torch.allclose(sum(uni_logits.values()), logit_emo, atol=1e-4), \
+            "SPCL Eq. 2 decomposition broken"
+
+        return logit_emo, logit_sen, logit_shift, feat_fusion, uni_logits

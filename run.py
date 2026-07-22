@@ -15,6 +15,7 @@ from utils import AutomaticWeightedLoss
 from model import GraphSmile
 from sklearn.metrics import confusion_matrix, classification_report
 from trainer import train_or_eval_model, seed_everything
+from spcl import SPCLLogger, SPCLScheduler
 from dataloader import (
     IEMOCAPDataset_BERT,
     IEMOCAPDataset_BERT4,
@@ -114,6 +115,15 @@ parser.add_argument(
     default=[1.0, 1.0, 1.0],
     help='[loss_emotion, loss_sentiment, loss_shift]',
 )
+parser.add_argument('--seed', type=int, default=2024)
+parser.add_argument('--use_spcl', action='store_true')
+parser.add_argument('--spcl_eps', type=float, default=0.1)
+parser.add_argument('--spcl_alpha', type=float, default=1.1)
+parser.add_argument('--spcl_min_frac', type=float, default=0.05)
+parser.add_argument('--spcl_normalize', action=argparse.BooleanOptionalAction,
+                    default=True)
+parser.add_argument('--spcl_mask_sen', action='store_true')
+parser.add_argument('--spcl_mask_sft', action='store_true')
 
 args = parser.parse_args()
 
@@ -123,8 +133,8 @@ os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 world_size = torch.cuda.device_count()
 os.environ['WORLD_SIZE'] = str(world_size)
 
-MELD_path = ''
-IEMOCAP_path = ''
+MELD_path = '/mnt/Academia/Teasis/Datasets/GraphSmile/CFN-ESA/CFN-ESA/meld_multi_features.pkl'
+IEMOCAP_path = '/mnt/Academia/Teasis/Datasets/GraphSmile/CFN-ESA/CFN-ESA/iemocap_multi_features.pkl'
 IEMOCAP4_path = ''
 CMUMOSEI7_path = ''
 
@@ -243,7 +253,7 @@ def main(local_rank):
     elif args.dataset == 'IEMOCAP4':
         n_classes_emo = 4
 
-    seed_everything()
+    seed_everything(args.seed)
     model = GraphSmile(args, embedding_dims, n_classes_emo)
 
     model = model.to(local_rank)
@@ -257,6 +267,18 @@ def main(local_rank):
     loss_function_emo = nn.NLLLoss()
     loss_function_sen = nn.NLLLoss()
     loss_function_shift = nn.NLLLoss()
+
+    spcl_scheduler = (SPCLScheduler(args.spcl_eps, args.spcl_alpha,
+                                    args.spcl_min_frac)
+                      if args.use_spcl else None)
+    spcl_logger = SPCLLogger(n_classes_emo)
+    spcl_cfg = {
+        'normalize': args.spcl_normalize,
+        'mask_sen': args.spcl_mask_sen,
+        'mask_sft': args.spcl_mask_sft,
+        'seed': args.seed,
+        'logger': spcl_logger,
+    }
 
     if args.loss_type == 'auto_loss':
         awl = AutomaticWeightedLoss(3)
@@ -358,6 +380,8 @@ def main(local_rank):
             args.epochs,
             args.classify,
             args.shift_win,
+            spcl_scheduler,
+            spcl_cfg,
         )
 
         valid_loss, _, _, valid_acc_emo, valid_f1_emo, _, _, valid_acc_sen, valid_f1_sen, valid_acc_sft, valid_f1_sft, _, _, _ = train_or_eval_model(
@@ -377,7 +401,19 @@ def main(local_rank):
             args.epochs,
             args.classify,
             args.shift_win,
+            None,
+            spcl_cfg,
         )
+
+        if spcl_scheduler is not None:
+            diagnostics = spcl_logger.summary()
+            if local_rank == 0:
+                logger.info("SPCL epoch=%d threshold=%.6g floor_fires=%d %s",
+                            epoch + 1, spcl_scheduler.thresh,
+                            spcl_scheduler.floor_fires, diagnostics)
+            spcl_scheduler.step_epoch()
+            assert spcl_scheduler.steps == epoch + 1
+            spcl_logger.reset()
 
         print(
             'epoch: {}, train_loss: {}, train_acc_emo: {}, train_f1_emo: {}, valid_loss: {}, valid_acc_emo: {}, valid_f1_emo: {}'
@@ -409,6 +445,8 @@ def main(local_rank):
                 args.epochs,
                 args.classify,
                 args.shift_win,
+                None,
+                spcl_cfg,
             )
 
             all_f1_emo.append(test_f1_emo)

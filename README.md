@@ -32,7 +32,7 @@ Adding the dataset path to the corresponding location in the run.py file, e.g. I
 ## Run
 ### IEMOCAP-6
 ```bash
-python -u run.py --gpu 2 --port 1530 --classify emotion \
+python -u run.py --gpu 0 --port 1530 --classify emotion \
 --dataset IEMOCAP --epochs 120 --textf_mode textf0 \
 --loss_type emo_sen_sft --lr 1e-04 --batch_size 16 --hidden_dim 512 \
 --win 17 17 --heter_n_layers 7 7 7 --drop 0.2 --shift_win 19 --lambd 1.0 1.0 0.7
@@ -48,7 +48,7 @@ python -u run.py --gpu 2 --port 1531 --classify emotion \
 
 ### MELD
 ```bash
-python -u run.py --gpu 2 --port 1532 --classify emotion \
+python -u run.py --gpu 0 --port 1532 --classify emotion \
 --dataset MELD --epochs 50 --textf_mode textf0 \
 --loss_type emo_sen_sft --lr 7e-05 --batch_size 16 --hidden_dim 384 \
 --win 3 3 --heter_n_layers 5 5 5 --drop 0.2 --shift_win 3 --lambd 1.0 0.5 0.2
